@@ -2,18 +2,29 @@
 title: "a3_task4_daija_odom"
 author: "Daija Odom"
 date: "10/28/2021"
-output: html_document
+output: 
+  html_document: 
+    theme: cosmo
+    toc: yes
 ---
+# Overview
+
+This code wrangles, visualizes, and analyzes data for mean size of purple urchins at the Naples Reef long term kelp removal experiment sites in 2010. 
+
+**Data citation:** Reed, D, R. Miller. 2021. SBC LTER: Reef: Long-term experiment: Kelp removal: Urchin size frequency distribution ver 21. Environmental Data Initiative. https://doi.org/10.6073/pasta/fd564dddfe7b77fe9e4bd8417f166057.
 
 # Setup
 
-```{r setup, include=TRUE, messsage = FALSE, warning = FALSE}
+```{r setup, include=TRUE, message = FALSE, warning = FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 
 library(tidyverse)
+
 library(janitor)
 library(here)
 library(lubridate)
+library(kableExtra)
+
 ```
 
 # Read in the data
@@ -23,26 +34,60 @@ urchins <- read_csv(here("data", "urchins.csv")) %>%
   clean_names()
 ```
 
+# Data wrangling: wrangle data to only include purple urchins observations at Naples Reef in 2010 
+
 ```{r}
 urchins_naples <- urchins %>% 
-  filter(common_name == "Purple Urchin", # Filter only purple urchin 
+  filter(common_name == "Purple Urchin", # Filter only purple urchins 
          site == "NAPL") %>% # Filter by site of Naples Reef 
   mutate(date = lubridate::mdy(date)) %>% # Converted class to date
   mutate(year = lubridate::year(date)) %>% # Added a new column for year
   filter(year == 2010) # Kept only observation from 2010 in year column
 ```
 
-# Data visualization
+# Data visualization: create a histogram and Q-Q plot of size distribution for purple urchins at Naples Reef in 2010 separated by treatment
 
 ```{r}
-urchins_qq <- ggplot(data = urchins_naples) +
-  geom_qq(aes(sample = size)) +
-  geom_qq_line(aes(sample = size)) +
-  facet_wrap( ~ treatment) +
-  labs(x = "Size (cm)",
-       y = "")
+ggplot(data = urchins_naples, aes(x = size, fill = treatment)) +
+  geom_histogram(bins = 10) + # Reduced the number of bins from default
+  facet_wrap(~ treatment) + # Split column into two by treatment
+  labs( x = "Size of Urchins (cm)",
+        y = "Count",
+        title = "Distribution of Size of Purple Urchins",
+        fill = "Treatment") # Change the legend title using `fill =` for histogram
 
-urchins_qq
+```
+
+
+```{r}
+urchins_qq <- ggplot(data = urchins_naples) + 
+  geom_qq(aes(sample = size)) + # Create a Q-Q plot
+  geom_qq_line(aes(sample = size)) +
+  facet_wrap( ~ treatment) + # Divide column by annual and control treatment
+  labs(x = "Theoretical Size (cm)",
+       y = "Sample Size (cm)",
+       title = "Distribution of Size of Purple Urchins")
+
+urchins_qq # Call on histogram
   
+```
+
+**Main takeaways:** The two exploratory graphs show a normal distribution between purple urchins in the annual and controlled sites. Based on the line in the Q-Q plot urchins in the controlled site appear to be more normally distributed based on the skew towards 3 cm. 
+
+# Statistics Table: finalized summary table of mean, standard deviation, and sample size for purple urchins in 2010
+
+```{r}
+urchins_naples_2010 <- urchins_naples %>% # Created subset of data to only include treatment and measures of central tendency
+  group_by(treatment) %>% 
+  summarize("Mean Diameter (cm)" = round(mean(size),1), # Collapsed original rows into single row per group
+            "Standard Deviation" = round(sd(size),1), # Rounded to 1 decimal place
+            "Sample Size" = n()) %>% 
+  rename("Treatment" = treatment) # Renamed treatment header to look cleaner
+
+ knitr::kable(head(urchins_naples_2010),
+              caption = "Table 1. Mean, standard deviation, and sample size of purple urchins") %>% 
+   kable_styling(full_width = FALSE) # Fix table column headers
+ 
+
 ```
 
