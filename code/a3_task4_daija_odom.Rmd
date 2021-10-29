@@ -1,0 +1,48 @@
+---
+title: "a3_task4_daija_odom"
+author: "Daija Odom"
+date: "10/28/2021"
+output: html_document
+---
+
+# Setup
+
+```{r setup, include=TRUE, messsage = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(janitor)
+library(here)
+library(lubridate)
+```
+
+# Read in the data
+
+```{r}
+urchins <- read_csv(here("data", "urchins.csv")) %>% 
+  clean_names()
+```
+
+```{r}
+urchins_naples <- urchins %>% 
+  filter(common_name == "Purple Urchin", # Filter only purple urchin 
+         site == "NAPL") %>% # Filter by site of Naples Reef 
+  mutate(date = lubridate::mdy(date)) %>% # Converted class to date
+  mutate(year = lubridate::year(date)) %>% # Added a new column for year
+  filter(year == 2010) # Kept only observation from 2010 in year column
+```
+
+# Data visualization
+
+```{r}
+urchins_qq <- ggplot(data = urchins_naples) +
+  geom_qq(aes(sample = size)) +
+  geom_qq_line(aes(sample = size)) +
+  facet_wrap( ~ treatment) +
+  labs(x = "Size (cm)",
+       y = "")
+
+urchins_qq
+  
+```
+

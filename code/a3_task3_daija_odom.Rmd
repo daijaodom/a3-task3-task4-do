@@ -1,0 +1,122 @@
+---
+title: "a3_task3_daija_odom"
+author: "Daija Odom"
+date: "10/28/2021"
+output: 
+  html_document: 
+    theme: cosmo
+    toc: yes
+---
+
+# Overview
+
+This code wrangles, visualizes, and analyzes data for size frequency distribution among red and purple urchins at the Santa Barbara Coast long term kelp removal experiment sites from 2008 to 2020. 
+
+**Data citation:** Reed, D, R. Miller. 2021. SBC LTER: Reef: Long-term experiment: Kelp removal: Urchin size frequency distribution ver 21. Environmental Data Initiative. https://doi.org/10.6073/pasta/fd564dddfe7b77fe9e4bd8417f166057.
+
+# Setup
+
+```{r setup, include=TRUE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(kableExtra)
+library(gt)
+library(lubridate)
+
+```
+
+# Read in the data
+
+```{r}
+urchins <- read_csv(here("data", "urchins.csv")) %>% 
+  clean_names() # Change columns to all lower snake case
+
+```
+
+# Section 1:
+
+## Data Visualization: Histogram of urchin sizes from all Santa Barbara Coast in control and annual treatment sites
+
+Create a faceted histogram of urchin sizes from all 5 sites and both control and annual treatments, separating by the common name of urchins (Purple Urchin and Red Urchin). 
+
+```{r, fig.cap= "Fig 1. Distribution of sizes between purple and red urchins."}
+ggplot(data = urchins, aes(x = size)) +
+  geom_histogram(bins = 10, aes(fill = common_name)) + # Reduced the number of bins from default
+  facet_wrap(~ common_name) + # Split column into two by common name
+  labs( x = "Diameter of Urchins  (cm)",
+        y = "Count",
+        title = "Distribution of Size in Red vs Purple Urchins",
+        fill = "Common Name") # Change the legend title using `fill =` for histogram
+```
+
+## Statistics Table: create summary table of mean, median, standard deviation, and sample size of urchins from control and annual treatments
+
+```{r}
+summary <- urchins %>% 
+  group_by(common_name) %>% 
+  summarize(mean = round(mean(size), 1), # Round decimals to 1 place
+            median = median(size), 
+            std_dev = round(sd(size), 1), 
+            count = n()) %>% # Find the sample size
+  kable(col.names = c("Common Name", "Mean (cm)", "Median", "Standard Deviation", "Sample Size"), 
+        caption = "Table 1. Mean, Median, Standard Deviation, and Sample Size of Red and Purple Urchins") %>% # Created a figure caption
+  kable_styling(full_width = FALSE) # Placed spaces between column headers
+
+summary # Call on the summary table to appear in knitted document
+```
+
+ **Overall takeaways:**  As shown by the smaller standard deviation, mean, and median in the data, there is less spread among the purple urchins. On average, there is an actual difference of 2.3 cm and a percent difference of 41% between the red and purple urchins.
+ 
+# Section 2:
+
+## Data wrangling: filter purple urchin counts by each of the five sites
+ 
+ Here we create a subset of the data only including the observations for the purple urchin counts by `year` and `site`.
+ 
+```{r}
+purple_urchins <- urchins %>% 
+  filter(common_name == "Purple Urchin") %>% # Only include the purple urchin 
+  mutate(date = lubridate::mdy(date)) %>% # Changing the class of the date column from character to date
+  mutate(year = lubridate::year(date)) %>% # Extracted the year
+  mutate(site_full = case_when( # Created new column of full site name (If the site equals NAPL then turn it into Naples Reef)
+    site == "NAPL" ~ "Naples Reef", 
+    site == "AQUE" ~ "Arroyo Quemado Reef", 
+    site == "CARP" ~ "Carpinteria Reef", 
+    site == "MOHK" ~ "Mohawk Reef", 
+    site == "IVEE" ~ "Isla Vista Reef"
+  ))
+```
+
+## Data wrangling: total number of purple urchins by site and year
+
+Only columns for `site_full` and `year` are retained, then the `total` number of purple urchins in each site is created.
+
+```{r}
+purple_total <- purple_urchins %>% 
+  group_by(site_full, year) %>% 
+  summarize(total = n()) # Create summary table to contain total number of purple urchins 
+
+```
+
+## Data visualization: total counts of urchins from 2008-2020
+
+Create a line plot of total counts of purple urchins by site from 2008 to 2020, separating by site name (Arroyo Quemado Reef, Carpinteria Reef, Isla Vista Reef, Mohawk Reef, Naples Reef).
+
+```{r, fig.cap= "Fig 2. Total population of purple urchins by individual site"}
+ggplot(data = purple_total, aes(x = year, y = total)) +
+  geom_line(aes(color = site_full)) + # Created a line graph
+  facet_wrap(~ site_full, scales = 'free') + # Divided column into five based on site
+  scale_x_continuous(breaks = c(2008, 2010, 2012, 2014, 2016, 2018, 2020)) + # Fixed decimals on x-axis, manually sets labels
+  scale_color_discrete(name = "Site") +
+  theme(axis.text.x = element_text(angle = 65, hjust = 1)) + # Angled text on x-axis to succinctly fit
+  labs( x = "Year",
+        y = "Total Number of Urchins",
+        title = "Total Population of Purple Urchins by Site",
+        color = "Site")
+
+```
+
+**Overall takeaways:** Between 2008 and 2020 the graph shows a decrease in total number of purple urchin population reflecting a positively skewed change. To determine whether the changes are reflective of actual urchin population kelp growth must be taken into account. Other factors that could affect the population of urchins include climate patterns and water temperatures along with consistency of data collection.
